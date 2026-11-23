@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Student Academic Profile{% endblock %}
+
+{% block content %}
+{% set st = profile.student %}
+{% set stats = profile.overall_stats %}
+
+<!-- STUDENT HEADER BANNER -->
+<div class="card" style="margin-bottom: 24px;">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+    
+    <div style="display: flex; gap: 20px; align-items: center;">
+      <div class="student-avatar" style="width: 72px; height: 72px; font-size: 26px; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+        {{ st.full_name[:2].upper() }}
+      </div>
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h2 style="font-size: 22px; font-weight: 800;">{{ st.full_name }}</h2>
+          <span class="badge {% if stats.percentage >= 85 %}badge-excellent{% elif stats.percentage >= 75 %}badge-present{% elif stats.percentage >= 65 %}badge-warning{% else %}badge-danger{% endif %}" style="font-size: 13px;">
+            {{ stats.status }} ({{ stats.percentage }}%)
+          </span>
+        </div>
+        <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px; font-family: monospace;">
+          Roll No: <strong style="color: var(--text-primary);">{{ st.roll_no }}</strong> &bull; 
+          {{ st.department.name if st.department else 'Dept' }} &bull; 
+          Semester {{ st.semester }} - Section {{ st.section }}
+        </div>
+        <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+          <span>📧 {{ st.email }}</span>
+          <span>👨‍👩‍👧 {{ st.parent_email or 'No parent email' }}</span>
+          <span>📞 {{ st.phone or 'No phone' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: 10px;">
+      <form method="POST" action="{{ url_for('send_student_warning', student_id=st.id) }}">
+        <button type="submit" class="quick-action-btn" style="background: var(--absent); box-shadow: 0 4px 12px rgba(244, 63, 94, 0.25);">
+          🚨 Send Attendance Warning Alert
+        </button>
+      </form>
+      <button type="button" class="btn-secondary" onclick="openModal('edit-student-modal')">
+        ✏️ Edit Profile
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Overall Stat Cards -->
+  <div class="kpi-grid" style="margin-top: 24px; margin-bottom: 0;">
+    <div class="kpi-card kpi-primary" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 42px; height: 42px; font-size: 18px;">📑</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 22px;">{{ stats.total }}</div>
+        <div class="kpi-label" style="font-size: 12px;">Total Classes</div>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-success" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 42px; height: 42px; font-size: 18px;">✅</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 22px;">{{ stats.present }}</div>
+        <div class="kpi-label" style="font-size: 12px;">Attended</div>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-danger" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 42px; height: 42px; font-size: 18px;">❌</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 22px;">{{ stats.absent }}</div>
+        <div class="kpi-label" style="font-size: 12px;">Absences</div>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-warning" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 42px; height: 42px; font-size: 18px;">⏳</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 22px;">{{ stats.late }}</div>
+        <div class="kpi-label" style="font-size: 12px;">Late Marks</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SUBJECT-WISE ATTENDANCE BREAKDOWN -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">📚 Course-wise Attendance Progress</h3>
+      <p class="card-desc">Subject breakdown for Semester {{ st.semester }}</p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+    {% for item in profile.subject_breakdowns %}
+      {% set subj = item.subject %}
+      {% set s_stats = item.stats %}
+      <div style="background: var(--bg-main); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+            <strong style="font-size: 14px;">{{ subj.code }}</strong>
+            <div style="font-size: 12px; color: var(--text-muted);">{{ subj.name }}</div>
+          </div>
+          <span class="badge {% if s_stats.percentage >= 75 %}badge-present{% else %}badge-absent{% endif %}">
+            {{ s_stats.percentage }}%
+          </span>
+        </div>
+
+        <div class="progress-bar-container" style="margin: 10px 0 6px 0;">
+          <div class="progress-bar-fill {% if s_stats.percentage >= 75 %}progress-success{% else %}progress-danger{% endif %}" style="width: {{ s_stats.percentage }}%;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+          <span>Attended: {{ s_stats.present }}/{{ s_stats.total }}</span>
+          <span>Instructor: {{ subj.teacher_name }}</span>
+        </div>
+      </div>
+    {% else %}
+      <p style="color: var(--text-muted);">No subjects found for this semester.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- SEMESTER MARKS -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">📝 Semester Marks</h3>
+      <p class="card-desc">Mid-semester and final-semester marks</p>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead><tr><th>Subject</th><th>Mid-Semester</th><th>Final-Semester</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for item in profile.subject_breakdowns %}
+          {% set mark = profile.marks_by_subject.get(item.subject.id) %}
+          <tr>
+            <td><strong>{{ item.subject.code }}</strong><div style="font-size: 11px; color: var(--text-muted);">{{ item.subject.name }}</div></td>
+            <td>{{ mark.mid_sem_marks if mark and mark.mid_sem_marks is not none else '-' }}</td>
+            <td>{{ mark.final_sem_marks if mark and mark.final_sem_marks is not none else '-' }}</td>
+            <td><strong>{{ ((mark.mid_sem_marks or 0) + (mark.final_sem_marks or 0))|round(1) if mark else '-' }}</strong></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No subjects found for this semester.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ATTENDANCE TIMELINE HISTORY & NOTIFICATIONS -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+  
+  <!-- History Table -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">📅 Session Attendance History</h3>
+        <p class="card-desc">Chronological lecture log</p>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Date & Time</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in profile.records %}
+            {% set sess = rec.session %}
+            <tr>
+              <td>
+                <strong>{{ sess.date.strftime('%b %d, %Y') if sess.date else 'N/A' }}</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ sess.start_time }}</div>
+              </td>
+              <td>
+                <strong>{{ sess.subject.code if sess.subject else 'N/A' }}</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ sess.topic_covered or 'Regular' }}</div>
+              </td>
+              <td>
+                <span class="badge {% if rec.status == 'PRESENT' %}badge-present{% elif rec.status == 'ABSENT' %}badge-absent{% elif rec.status == 'LATE' %}badge-late{% else %}badge-excused{% endif %}">
+                  {{ rec.status }}
+                </span>
+              </td>
+              <td style="font-size: 12px; color: var(--text-secondary);">
+                {{ rec.remarks or '-' }}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                No attendance sessions recorded yet for this student.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Notification Logs -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">✉️ Alert Dispatch Logs</h3>
+        <p class="card-desc">Sent email notifications</p>
+      </div>
+    </div>
+
+    <div>
+      {% for notif in profile.notifications %}
+        <div style="padding: 12px 0; border-bottom: 1px solid var(--border-subtle);">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <span>{{ notif.notification_type }}</span>
+            <span>{{ notif.sent_at.strftime('%b %d, %H:%M') if notif.sent_at else '' }}</span>
+          </div>
+          <div style="font-weight: 600; font-size: 13px; margin: 4px 0;">{{ notif.subject }}</div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; color: var(--text-muted);">To: {{ notif.recipient_email }}</span>
+            <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--primary); font-size: 10px;">{{ notif.status }}</span>
+          </div>
+        </div>
+      {% else %}
+        <div style="text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 13px;">
+          No automated alert emails sent to this student yet.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div class="modal-backdrop" id="edit-student-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="card-title">✏️ Edit Student Profile</h3>
+      <button class="icon-btn" onclick="closeModal('edit-student-modal')" type="button">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('edit_student', student_id=st.id) }}">
+      <div class="modal-body">
+        
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" class="form-control" name="full_name" value="{{ st.full_name }}" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Student Email</label>
+          <input type="email" class="form-control" name="email" value="{{ st.email }}" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Parent Email</label>
+          <input type="email" class="form-control" name="parent_email" value="{{ st.parent_email or '' }}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <input type="text" class="form-control" name="phone" value="{{ st.phone or '' }}">
+        </div>
+
+        <div class="filter-grid" style="margin-bottom: 0;">
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <select class="form-control" name="department_id">
+              {% for d in departments %}
+                <option value="{{ d.id }}" {% if st.department_id == d.id %}selected{% endif %}>{{ d.code }} - {{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Semester</label>
+            <input type="number" class="form-control" name="semester" min="1" max="8" value="{{ st.semester }}">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Section</label>
+            <input type="text" class="form-control" name="section" value="{{ st.section }}">
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('edit-student-modal')">Cancel</button>
+        <button type="submit" class="quick-action-btn">Update Profile</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

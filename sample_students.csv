@@ -1,0 +1,7 @@
+roll_no,full_name,email,parent_email,phone,department_code,semester,section
+CS2026101,Aarav Patel,aarav.p@student.edu,patel.family@gmail.com,+1-555-0401,CSE,4,A
+CS2026102,Maya Lin,maya.lin@student.edu,parent.lin@gmail.com,+1-555-0402,CSE,4,A
+CS2026103,Ethan Miller,ethan.m@student.edu,miller.parent@yahoo.com,+1-555-0403,CSE,4,A
+IT2026104,Zara Khan,zara.k@student.edu,khan.guardians@gmail.com,+1-555-0404,IT,4,B
+EC2026105,Gabriel Souza,gabriel.s@student.edu,souza.family@gmail.com,+1-555-0405,ECE,4,A
+ME2026106,Taro Tanaka,taro.t@student.edu,tanaka.parent@gmail.com,+1-555-0406,MECH,4,A

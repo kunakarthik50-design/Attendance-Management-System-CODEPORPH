@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Notification Hub & Email Outbox{% endblock %}
+
+{% block content %}
+<!-- SIMULATION / SMTP STATUS BANNER -->
+<div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(147, 51, 234, 0.08)); border-color: rgba(99, 102, 241, 0.3);">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 4px;">
+        ✉️ Automated Notification Dispatch Center
+      </h3>
+      <p style="font-size: 13px; color: var(--text-secondary);">
+        Logs all automated absentee alerts, parent notices, and low-attendance warnings. Click "Preview" on any record to view the full rendered HTML email template.
+      </p>
+    </div>
+    <a href="{{ url_for('settings') }}" class="btn-secondary">⚙️ Configure SMTP & Credentials</a>
+  </div>
+</div>
+
+<!-- FILTERS & OUTBOX TABLE -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">📬 Dispatched Message Logs ({{ logs|length }})</h3>
+      <p class="card-desc">Audit trail of outbound student and parent communications</p>
+    </div>
+
+    <!-- Filter Type -->
+    <form method="GET" action="{{ url_for('notification_logs') }}" style="display: flex; gap: 10px;">
+      <select name="type" class="form-control" style="width: 220px;" onchange="this.form.submit()">
+        <option value="">All Notification Types</option>
+        <option value="ABSENTEE_ALERT" {% if selected_type == 'ABSENTEE_ALERT' %}selected{% endif %}>Absentee Alert</option>
+        <option value="LOW_ATTENDANCE_WARNING" {% if selected_type == 'LOW_ATTENDANCE_WARNING' %}selected{% endif %}>Low Attendance Warning</option>
+        <option value="TEST_MESSAGE" {% if selected_type == 'TEST_MESSAGE' %}selected{% endif %}>Test Messages</option>
+      </select>
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Sent Timestamp</th>
+          <th>Student</th>
+          <th>Recipient</th>
+          <th>Notification Type</th>
+          <th>Subject Line</th>
+          <th>Delivery Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td>
+              <strong style="font-size: 12px;">{{ log.sent_at.strftime('%b %d, %Y') if log.sent_at else '' }}</strong>
+              <div style="font-size: 11px; color: var(--text-muted);">{{ log.sent_at.strftime('%I:%M %p') if log.sent_at else '' }}</div>
+            </td>
+            <td>
+              {% if log.student %}
+                <a href="{{ url_for('student_profile', student_id=log.student.id) }}"><strong>{{ log.student.full_name }}</strong></a>
+                <div style="font-size: 11px; font-family: monospace; color: var(--text-muted);">{{ log.student.roll_no }}</div>
+              {% else %}
+                <span style="color: var(--text-muted);">System / General</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="font-size: 13px;">{{ log.recipient_email }}</div>
+              <span class="badge" style="background: var(--bg-main); font-size: 10px;">{{ log.recipient_role }}</span>
+            </td>
+            <td>
+              <span class="badge" style="background: var(--primary-light); color: var(--primary);">
+                {{ log.notification_type }}
+              </span>
+            </td>
+            <td style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              {{ log.subject }}
+            </td>
+            <td>
+              {% if log.status == 'SENT' %}
+                <span class="badge badge-present">✅ SENT (SMTP)</span>
+              {% elif log.status == 'SIMULATED' %}
+                <span class="badge badge-present">✅ SENT</span>
+              {% else %}
+                <span class="badge badge-danger">❌ FAILED</span>
+              {% endif %}
+            </td>
+            <td>
+              <button type="button" class="btn-secondary" onclick="viewEmailPreview({{ log.id }}, '{{ log.subject|escape }}')" style="padding: 4px 10px;">
+                👁️ Preview HTML
+              </button>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">
+              No notification logs recorded yet.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- EMAIL PREVIEW MODAL -->
+<div class="modal-backdrop" id="email-preview-modal">
+  <div class="modal-box" style="max-width: 700px;">
+    <div class="modal-header">
+      <h3 class="card-title" id="preview-modal-title">✉️ Email Content Preview</h3>
+      <button class="icon-btn" onclick="closeModal('email-preview-modal')" type="button">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 10px; background: #f1f5f9;">
+      <iframe id="preview-iframe" style="width: 100%; height: 450px; border: none; border-radius: 8px; background: #ffffff;"></iframe>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" onclick="closeModal('email-preview-modal')">Close Preview</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function viewEmailPreview(logId, subject) {
+    document.getElementById('preview-modal-title').textContent = `✉️ ${subject}`;
+    const iframe = document.getElementById('preview-iframe');
+    iframe.src = `/notifications/${logId}/preview`;
+    openModal('email-preview-modal');
+  }
+</script>
+{% endblock %}

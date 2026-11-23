@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Interactive Attendance Marking Sheet{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('mark_attendance') }}" id="attendance-marking-form">
+  
+  <!-- CLASS & SESSION PARAMETERS CARD -->
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">⚙️ Session Details & Filters</h3>
+        <p class="card-desc">Configure the course, time slot, and class parameters</p>
+      </div>
+    </div>
+
+    <!-- Filter Form (GET) to reload class -->
+    <div class="filter-grid" style="margin-bottom: 20px;">
+      <div class="form-group">
+        <label class="form-label">Department</label>
+        <select class="form-control" name="filter_dept" id="filter_dept" onchange="applyFilters()">
+          <option value="">All Departments</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}" {% if selected_dept == d.id %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Semester</label>
+        <select class="form-control" name="semester" id="filter_sem" onchange="applyFilters()">
+          {% for sem in range(1, 9) %}
+            <option value="{{ sem }}" {% if selected_sem == sem %}selected{% endif %}>Semester {{ sem }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Section</label>
+        <select class="form-control" name="section" id="filter_sec" onchange="applyFilters()">
+          <option value="A" {% if selected_sec == 'A' %}selected{% endif %}>Section A</option>
+          <option value="B" {% if selected_sec == 'B' %}selected{% endif %}>Section B</option>
+          <option value="C" {% if selected_sec == 'C' %}selected{% endif %}>Section C</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Subject / Course *</label>
+        <select class="form-control" name="subject_id" id="subject_id" required>
+          {% for s in subjects %}
+            <option value="{{ s.id }}" {% if selected_subject == s.id %}selected{% endif %}>
+              {{ s.code }}: {{ s.name }} ({{ s.teacher_name }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="filter-grid">
+      <div class="form-group">
+        <label class="form-label">Session Date</label>
+        <input type="date" class="form-control" name="session_date" value="{{ today_date }}" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Start Time</label>
+        <input type="text" class="form-control" name="start_time" value="09:00 AM">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">End Time</label>
+        <input type="text" class="form-control" name="end_time" value="10:00 AM">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Topic Covered / Lecture Title</label>
+        <input type="text" class="form-control" name="topic_covered" placeholder="e.g. Binary Search Trees">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ATTENDANCE MATRIX -->
+  <div class="marking-matrix">
+    
+    <!-- TOOLBAR -->
+    <div class="marking-toolbar">
+      
+      <!-- Live Counter Pills -->
+      <div class="live-stats-bar">
+        <div class="live-pill present">
+          <span>Present:</span> <span id="count-present">{{ students|length }}</span>
+        </div>
+        <div class="live-pill absent">
+          <span>Absent:</span> <span id="count-absent">0</span>
+        </div>
+        <div class="live-pill excused">
+          <span>Bypass:</span> <span id="count-bypass">0</span>
+        </div>
+        
+        <div style="width: 140px; margin-left: 10px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; margin-bottom: 3px;">
+            <span>Class Rate</span>
+            <span id="live-percentage-val">100%</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill progress-success" id="live-progress-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bulk Actions & Shortcuts -->
+      <div class="bulk-actions">
+        <button type="button" class="btn-secondary" id="btn-mark-all-present">✅ All Present</button>
+        <button type="button" class="btn-secondary" id="btn-mark-all-absent">❌ All Absent</button>
+      </div>
+
+    </div>
+
+    <!-- STUDENT LIST ROWS -->
+    <div id="student-list-container">
+      {% for st in students %}
+        {% set st_stats = st.calculate_attendance() %}
+        <div class="student-row" data-student-id="{{ st.id }}">
+          <input type="hidden" name="student_ids[]" value="{{ st.id }}">
+          <input type="hidden" name="status_{{ st.id }}" id="status_input_{{ st.id }}" value="PRESENT">
+
+          <div class="student-meta">
+            <div class="student-avatar">{{ st.full_name[:2].upper() }}</div>
+            <div class="student-info">
+              <h4>{{ st.full_name }}</h4>
+              <p>{{ st.roll_no }} &bull; Overall: <strong style="color: {% if st_stats.percentage >= 75 %}var(--present){% else %}var(--absent){% endif %};">{{ st_stats.percentage }}%</strong></p>
+            </div>
+          </div>
+
+          <!-- Status Selector Buttons -->
+          <div class="status-toggle-group">
+            <button type="button" class="status-btn selected-present" data-student-id="{{ st.id }}" data-status="PRESENT">Present</button>
+            <button type="button" class="status-btn" data-student-id="{{ st.id }}" data-status="ABSENT">Absent</button>
+            <button type="button" class="status-btn" data-student-id="{{ st.id }}" data-status="BYPASS">Bypass</button>
+          </div>
+
+          <!-- Remarks Input -->
+          <div>
+            <input type="text" class="remarks-input" name="remarks_{{ st.id }}" placeholder="Optional remark (e.g. sick leave)">
+          </div>
+        </div>
+      {% else %}
+        <div style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+          <p style="font-size: 16px; font-weight: 600;">No students found for this class combination.</p>
+          <p style="font-size: 13px; margin-top: 6px;">Try adjusting the Department, Semester, or Section filter above, or add new students.</p>
+          <a href="{{ url_for('student_list') }}" class="quick-action-btn" style="margin-top: 15px; display: inline-flex;">Manage Students Directory</a>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- SUBMIT & NOTIFICATION FOOTER -->
+    {% if students %}
+      <div style="padding: 20px 24px; background: var(--bg-surface-elevated); border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
+          <input type="checkbox" name="auto_notify" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+          <span>✉️ Automatically send Absentee Email Alerts to absent students and parents</span>
+        </label>
+
+        <button type="submit" class="quick-action-btn" style="padding: 12px 28px; font-size: 14px;">
+          💾 Save & Finalize Attendance Session
+        </button>
+      </div>
+    {% endif %}
+
+  </div>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+<script>
+  function applyFilters() {
+    const dept = document.getElementById('filter_dept').value;
+    const sem = document.getElementById('filter_sem').value;
+    const sec = document.getElementById('filter_sec').value;
+    const subj = document.getElementById('subject_id').value;
+    
+    let url = `{{ url_for('mark_attendance') }}?semester=${sem}&section=${sec}`;
+    if (dept) url += `&department_id=${dept}`;
+    if (subj) url += `&subject_id=${subj}`;
+    window.location.href = url;
+  }
+</script>
+{% endblock %}

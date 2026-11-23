@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Student Attendance Management System{% endblock %}</title>
+  
+  <!-- Google Fonts & Chart.js -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- FLASH TOAST NOTIFICATIONS -->
+  <div class="toast-container" id="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="toast toast-{{ category }}">
+            <span>
+              {% if category == 'success' %}✅{% elif category == 'danger' %}❌{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+            </span>
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <div class="app-container">
+    
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">🎓</div>
+        <div class="brand-info">
+          <h2>AttendTrack</h2>
+          <span>Python Capstone System</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Overview</div>
+        <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+
+        <div class="nav-section-title">Attendance</div>
+        <a href="{{ url_for('mark_attendance') }}" class="nav-item {% if request.endpoint == 'mark_attendance' %}active{% endif %}">
+          <span class="nav-icon">✍️</span>
+          <span>Mark Attendance</span>
+        </a>
+        <a href="{{ url_for('attendance_history') }}" class="nav-item {% if request.endpoint in ['attendance_history', 'view_session'] %}active{% endif %}">
+          <span class="nav-icon">📅</span>
+          <span>Session Logs</span>
+        </a>
+
+        <div class="nav-section-title">Management</div>
+        <a href="{{ url_for('student_list') }}" class="nav-item {% if request.endpoint in ['student_list', 'student_profile', 'import_students'] %}active{% endif %}">
+          <span class="nav-icon">👥</span>
+          <span>Students Directory</span>
+        </a>
+        <a href="{{ url_for('course_list') }}" class="nav-item {% if request.endpoint == 'course_list' %}active{% endif %}">
+          <span class="nav-icon">📚</span>
+          <span>Courses & Classes</span>
+        </a>
+        <a href="{{ url_for('marks_management') }}" class="nav-item {% if request.endpoint == 'marks_management' %}active{% endif %}">
+          <span class="nav-icon">📝</span>
+          <span>Mid & Final Marks</span>
+        </a>
+
+        <div class="nav-section-title">Analytics & Alerts</div>
+        <a href="{{ url_for('defaulters_report') }}" class="nav-item {% if request.endpoint == 'defaulters_report' %}active{% endif %}">
+          <span class="nav-icon">🚨</span>
+          <span>Defaulters (&lt;{{ global_threshold }}%)</span>
+        </a>
+        <a href="{{ url_for('analytics_report') }}" class="nav-item {% if request.endpoint == 'analytics_report' %}active{% endif %}">
+          <span class="nav-icon">📈</span>
+          <span>Analytics & Exports</span>
+        </a>
+        <a href="{{ url_for('notification_logs') }}" class="nav-item {% if request.endpoint == 'notification_logs' %}active{% endif %}">
+          <span class="nav-icon">✉️</span>
+          <span>Notification Hub</span>
+          {% if total_notifications_count > 0 %}
+            <span class="nav-badge">{{ total_notifications_count }}</span>
+          {% endif %}
+        </a>
+
+        <div class="nav-section-title">System</div>
+        <a href="{{ url_for('settings') }}" class="nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings & SMTP</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status-pill">
+          <div class="pulse-dot"></div>
+          <span>Python 3.14 / Active</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="main-content">
+      
+      <!-- TOP BAR -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <button class="icon-btn" id="mobile-menu-btn" style="display: none;">☰</button>
+          <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+        </div>
+
+        <div class="top-bar-right">
+          <a href="{{ url_for('mark_attendance') }}" class="quick-action-btn">
+            <span>+</span> Mark Attendance
+          </a>
+          <button class="icon-btn" id="theme-toggle-btn" title="Toggle Light/Dark Theme">🌙</button>
+        </div>
+      </header>
+
+      <!-- CONTENT BODY -->
+      <div class="content-body">
+        {% block content %}{% endblock %}
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- CORE SCRIPTS -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

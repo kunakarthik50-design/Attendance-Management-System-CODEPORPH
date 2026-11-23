@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Session Details & Record Management{% endblock %}
+
+{% block content %}
+<!-- SESSION OVERVIEW BANNER -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <h3 class="card-title">{{ session.subject.code }}: {{ session.subject.name }}</h3>
+        <span class="badge" style="background: var(--primary-light); color: var(--primary);">Sem {{ session.semester }} - Sec {{ session.section }}</span>
+      </div>
+      <p class="card-desc">
+        Conducted on <strong>{{ session.date.strftime('%B %d, %Y') if session.date else '' }}</strong> &bull; {{ session.start_time }} to {{ session.end_time }} &bull; By {{ session.created_by }}
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: 10px;">
+      <form method="POST" action="{{ url_for('notify_session_absentees', session_id=session.id) }}">
+        <button type="submit" class="quick-action-btn" style="background: var(--absent); box-shadow: 0 4px 12px rgba(244, 63, 94, 0.25);">
+          ✉️ Dispatch Absentee Alerts ({{ summary.absent }})
+        </button>
+      </form>
+      <a href="{{ url_for('attendance_history') }}" class="btn-secondary" style="display: flex; align-items: center;">&larr; Back to History</a>
+    </div>
+  </div>
+
+  <!-- Session KPI Bar -->
+  <div class="kpi-grid" style="margin-bottom: 0;">
+    <div class="kpi-card kpi-primary" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 18px;">👥</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 20px;">{{ summary.total }}</div>
+        <div class="kpi-label" style="font-size: 12px;">Total Enrolled</div>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-success" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 18px;">✅</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 20px;">{{ summary.present }}</div>
+        <div class="kpi-label" style="font-size: 12px;">Present Students</div>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-danger" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 18px;">❌</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 20px;">{{ summary.absent }}</div>
+        <div class="kpi-label" style="font-size: 12px;">Absent Students</div>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-warning" style="padding: 14px 18px;">
+      <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 18px;">📊</div>
+      <div class="kpi-content">
+        <div class="kpi-value" style="font-size: 20px;">{{ summary.percentage }}%</div>
+        <div class="kpi-label" style="font-size: 12px;">Session Rate</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EDITABLE RECORDS TABLE -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">📝 Student Records List</h3>
+      <p class="card-desc">Review and update student attendance statuses or remarks</p>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('update_session', session_id=session.id) }}">
+    
+    <div class="form-group" style="margin-bottom: 20px;">
+      <label class="form-label">Topic / Lecture Summary</label>
+      <input type="text" class="form-control" name="topic_covered" value="{{ session.topic_covered or '' }}" placeholder="Lecture topic">
+    </div>
+
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Roll No</th>
+            <th>Student Name</th>
+            <th>Contact Email</th>
+            <th>Status</th>
+            <th>Remarks</th>
+            <th>Profile</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in session.records %}
+            {% set st = rec.student %}
+            <tr>
+              <td><strong style="font-family: monospace;">{{ st.roll_no }}</strong></td>
+              <td>{{ st.full_name }}</td>
+              <td style="color: var(--text-muted);">{{ st.email }}</td>
+              <td>
+                <select name="status_{{ st.id }}" class="form-control" style="width: 130px; padding: 6px 10px; font-size: 12px; font-weight: 600;">
+                  <option value="PRESENT" {% if rec.status == 'PRESENT' %}selected{% endif %}>✅ Present</option>
+                  <option value="ABSENT" {% if rec.status == 'ABSENT' %}selected{% endif %}>❌ Absent</option>
+                  <option value="BYPASS" {% if rec.status in ['BYPASS', 'EXCUSED'] %}selected{% endif %}>📋 Bypass</option>
+                </select>
+              </td>
+              <td>
+                <input type="text" name="remarks_{{ st.id }}" class="form-control" value="{{ rec.remarks or '' }}" placeholder="Notes" style="padding: 6px 10px; font-size: 12px;">
+              </td>
+              <td>
+                <a href="{{ url_for('student_profile', student_id=st.id) }}" class="btn-secondary" style="padding: 4px 8px;">View</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+      <button type="submit" class="quick-action-btn">💾 Save Changes</button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

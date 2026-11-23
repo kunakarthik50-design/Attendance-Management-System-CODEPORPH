@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Defaulters & Low Attendance Report{% endblock %}
+
+{% block content %}
+<!-- FILTER & THRESHOLD CARD -->
+<div class="card" style="margin-bottom: 24px;">
+  <form method="GET" action="{{ url_for('defaulters_report') }}" class="filter-grid">
+    
+    <div class="form-group">
+      <label class="form-label">Attendance Threshold (%)</label>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <input type="number" step="0.5" min="50" max="100" class="form-control" name="threshold" value="{{ threshold }}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Department</label>
+      <select class="form-control" name="department_id">
+        <option value="">All Departments</option>
+        {% for d in departments %}
+          <option value="{{ d.id }}" {% if selected_dept == d.id %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Semester</label>
+      <select class="form-control" name="semester">
+        <option value="">All Semesters</option>
+        {% for sem in range(1, 9) %}
+          <option value="{{ sem }}" {% if selected_sem == sem %}selected{% endif %}>Semester {{ sem }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="display: flex; gap: 8px;">
+      <button type="submit" class="quick-action-btn" style="height: 42px;">🔍 Apply Threshold</button>
+      <a href="{{ url_for('defaulters_report') }}" class="btn-secondary" style="height: 42px; display: flex; align-items: center;">Reset</a>
+    </div>
+
+  </form>
+</div>
+
+<!-- DEFAULTERS BATCH TABLE -->
+<div class="card">
+  <form method="POST" action="{{ url_for('send_batch_defaulters_alert') }}">
+    <input type="hidden" name="threshold" value="{{ threshold }}">
+    
+    <div class="card-header">
+      <div>
+        <h3 class="card-title" style="color: var(--absent);">
+          🚨 At-Risk Defaulter Students ({{ defaulters|length }})
+        </h3>
+        <p class="card-desc">Students falling below the {{ threshold }}% mandatory attendance threshold</p>
+      </div>
+
+      {% if defaulters %}
+        <div style="display: flex; gap: 10px;">
+          <a href="{{ url_for('export_excel') }}" class="btn-secondary" style="display: flex; align-items: center; gap: 6px;">
+            📊 Export Excel Report
+          </a>
+          <button type="submit" class="quick-action-btn" style="background: var(--absent); box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3);">
+            🚨 Send Batch Email Alerts
+          </button>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if defaulters %}
+      <div style="padding: 10px 16px; background: var(--absent-bg); border: 1px solid var(--absent-border); border-radius: var(--radius-md); margin-bottom: 16px; font-size: 13px; color: var(--absent-text); display: flex; align-items: center; justify-content: space-between;">
+        <span>Select students below to dispatch formal email warnings to both the student and their registered parent.</span>
+        <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer;">
+          <input type="checkbox" id="select-all-defaulters" checked style="accent-color: var(--absent); width: 16px; height: 16px;">
+          <span>Select All</span>
+        </label>
+      </div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">Select</th>
+            <th>Roll Number</th>
+            <th>Student Name</th>
+            <th>Class</th>
+            <th>Current Rate</th>
+            <th>Attended / Total</th>
+            <th>Classes to Recover</th>
+            <th>Contacts</th>
+            <th>Profile</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in defaulters %}
+            {% set st = item.student %}
+            {% set stats = item.stats %}
+            <tr>
+              <td>
+                <input type="checkbox" name="selected_students[]" value="{{ st.id }}" class="defaulter-checkbox" checked style="accent-color: var(--absent); width: 16px; height: 16px;">
+              </td>
+              <td><strong style="font-family: monospace;">{{ st.roll_no }}</strong></td>
+              <td>
+                <strong>{{ st.full_name }}</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ st.department.code if st.department else '' }}</div>
+              </td>
+              <td>Sem {{ st.semester }}-{{ st.section }}</td>
+              <td>
+                <span class="badge badge-absent" style="font-size: 12px; font-weight: 800;">
+                  {{ stats.percentage }}%
+                </span>
+              </td>
+              <td>
+                {{ stats.present }} / {{ stats.total }} classes
+              </td>
+              <td>
+                <span style="font-weight: 700; color: #d97706;">+{{ item.classes_needed }} consecutive</span>
+              </td>
+              <td style="font-size: 11px;">
+                <div>📧 {{ st.email }}</div>
+                <div style="color: var(--text-muted);">👨‍👩‍👧 {{ st.parent_email or 'No parent email' }}</div>
+              </td>
+              <td>
+                <a href="{{ url_for('student_profile', student_id=st.id) }}" class="btn-secondary" style="padding: 4px 8px;">View</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="9" style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+                <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
+                <strong style="font-size: 16px; color: var(--present);">No Defaulters Found!</strong>
+                <p style="font-size: 13px; margin-top: 6px;">All active students are meeting or exceeding the {{ threshold }}% minimum attendance requirement.</p>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const selectAllCheckbox = document.getElementById('select-all-defaulters');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', (e) => {
+      document.querySelectorAll('.defaulter-checkbox').forEach(cb => {
+        cb.checked = e.target.checked;
+      });
+    });
+  }
+</script>
+{% endblock %}

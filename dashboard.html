@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Executive Attendance Dashboard{% endblock %}
+
+{% block content %}
+<!-- KPI METRICS -->
+<div class="kpi-grid">
+  
+  <div class="kpi-card kpi-primary">
+    <div class="kpi-icon">👨‍🎓</div>
+    <div class="kpi-content">
+      <div class="kpi-value">{{ metrics.total_students }}</div>
+      <div class="kpi-label">Active Students</div>
+      <div class="kpi-subtext">Across {{ metrics.total_departments }} Departments</div>
+    </div>
+  </div>
+
+  <div class="kpi-card kpi-success">
+    <div class="kpi-icon">📊</div>
+    <div class="kpi-content">
+      <div class="kpi-value">{{ metrics.today_percentage }}%</div>
+      <div class="kpi-label">Overall Attendance</div>
+      <div class="kpi-subtext">{{ metrics.today_sessions_count }} Sessions Today</div>
+    </div>
+  </div>
+
+  <div class="kpi-card kpi-danger">
+    <div class="kpi-icon">⚠️</div>
+    <div class="kpi-content">
+      <div class="kpi-value">{{ metrics.defaulter_count }}</div>
+      <div class="kpi-label">At-Risk Students</div>
+      <div class="kpi-subtext">Below {{ metrics.threshold }}% Threshold</div>
+    </div>
+  </div>
+
+  <div class="kpi-card kpi-warning">
+    <div class="kpi-icon">📑</div>
+    <div class="kpi-content">
+      <div class="kpi-value">{{ metrics.total_sessions }}</div>
+      <div class="kpi-label">Total Sessions</div>
+      <div class="kpi-subtext">{{ metrics.total_subjects }} Active Subjects</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CHARTS SECTION -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 28px;">
+  
+  <!-- 14-Day Trend Chart -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">📈 14-Day Attendance Trend</h3>
+        <p class="card-desc">Daily average attendance rate across all conducted classes</p>
+      </div>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="attendanceTrendsChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Subject Performance Chart -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">📚 Subject Breakdown</h3>
+        <p class="card-desc">Average percentage per course</p>
+      </div>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="subjectPerformanceChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- RECENT SESSIONS & AT-RISK WATCHLIST -->
+<div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px;">
+  
+  <!-- Recent Sessions Table -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">🕒 Recent Attendance Sessions</h3>
+        <p class="card-desc">Latest classroom records</p>
+      </div>
+      <a href="{{ url_for('attendance_history') }}" class="btn-secondary">View All</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Date & Time</th>
+            <th>Subject</th>
+            <th>Class</th>
+            <th>Rate</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sess in metrics.recent_sessions %}
+            {% set summary = sess.get_summary() %}
+            <tr>
+              <td>
+                <strong>{{ sess.date.strftime('%b %d, %Y') if sess.date else 'Today' }}</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ sess.start_time }}</div>
+              </td>
+              <td>
+                <strong>{{ sess.subject.code if sess.subject else 'N/A' }}</strong>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ sess.subject.name if sess.subject else '' }}</div>
+              </td>
+              <td>
+                <span class="badge" style="background: var(--primary-light); color: var(--primary);">Sem {{ sess.semester }}-{{ sess.section }}</span>
+              </td>
+              <td>
+                <span class="badge {% if summary.percentage >= 75 %}badge-present{% else %}badge-absent{% endif %}">
+                  {{ summary.percentage }}% ({{ summary.present }}/{{ summary.total }})
+                </span>
+              </td>
+              <td>
+                <a href="{{ url_for('view_session', session_id=sess.id) }}" class="btn-secondary" style="padding: 4px 8px;">Details</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                No attendance sessions recorded yet. Click "Mark Attendance" above to start!
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Defaulters Watchlist -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">🚨 Critical Defaulters Watchlist</h3>
+        <p class="card-desc">Students below {{ metrics.threshold }}% requirement</p>
+      </div>
+      <a href="{{ url_for('defaulters_report') }}" class="btn-secondary">Full Report</a>
+    </div>
+
+    <div>
+      {% for item in metrics.defaulters_preview %}
+        {% set st = item.student %}
+        {% set stats = item.stats %}
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-subtle);">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="student-avatar" style="background: linear-gradient(135deg, #f43f5e, #be123c); width: 36px; height: 36px; font-size: 12px;">
+              {{ st.full_name[:2].upper() }}
+            </div>
+            <div>
+              <a href="{{ url_for('student_profile', student_id=st.id) }}" style="font-weight: 700; font-size: 13px;">{{ st.full_name }}</a>
+              <div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">{{ st.roll_no }} &bull; Sem {{ st.semester }}-{{ st.section }}</div>
+            </div>
+          </div>
+
+          <div style="text-align: right;">
+            <span class="badge badge-absent" style="font-size: 12px;">{{ stats.percentage }}%</span>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">{{ stats.absent }} missed</div>
+          </div>
+        </div>
+      {% else %}
+        <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+          <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
+          <strong>No defaulters detected!</strong>
+          <p style="font-size: 12px; margin-top: 4px;">All students currently meet the {{ metrics.threshold }}% attendance threshold.</p>
+        </div>
+      {% endfor %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}
